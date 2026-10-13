@@ -1,8 +1,22 @@
 import { useStore } from '../store'
-import { Icon, Progress, Pill, useClock } from '../ui'
-import { Radar, MonthBars } from '../charts'
+import { Icon, Ticks, Progress, useClock } from '../ui'
+import { MonthBars } from '../charts'
 import { SKILL_CATEGORIES, PRIORITIES, CERT_STATUS } from '../constants'
-import { addMonths, avg, brl, daysUntil, fmtDate, fmtDateLong, hostOf, iso, monthKey, monthShort, pad, sum } from '../utils'
+import { addMonths, avg, brl, brlShort, daysUntil, fmtDate, fmtDateLong, hostOf, iso, monthKey, monthShort, pad, sum } from '../utils'
+
+function Ticker({ items }) {
+  const row = items.map((t, i) => (
+    <span key={i} className="ticker-item">{t}<i aria-hidden="true">■</i></span>
+  ))
+  return (
+    <div className="ticker" aria-label={items.join(' · ')}>
+      <div className="ticker-track" aria-hidden="true">
+        <div>{row}</div>
+        <div>{row}</div>
+      </div>
+    </div>
+  )
+}
 
 export default function Dashboard({ go }) {
   const { state, set, update } = useStore()
@@ -12,8 +26,7 @@ export default function Dashboard({ go }) {
 
   const h = now.getHours()
   const greet = h < 5 ? 'Boa madrugada' : h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'
-  const weekday = now.toLocaleDateString('pt-BR', { weekday: 'long' })
-  const dateStr = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }).replace('.', '')
+  const longDate = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
 
   const mk = monthKey(now)
   const monthTx = transactions.filter((t) => t.date?.startsWith(mk))
@@ -21,18 +34,17 @@ export default function Dashboard({ go }) {
   const out = sum(monthTx.filter((t) => t.type === 'out').map((t) => t.amount))
 
   const doing = tasks.filter((t) => t.column === 'doing')
+  const todo = tasks.filter((t) => t.column === 'todo')
   const openTasks = tasks.filter((t) => t.column !== 'done')
   const doneCerts = certs.filter((c) => c.status === 'concluida').length
   const next = certs
     .filter((c) => c.status !== 'concluida' && c.targetDate && daysUntil(c.targetDate) >= 0)
     .sort((a, b) => a.targetDate.localeCompare(b.targetDate))[0]
-
-  const radar = SKILL_CATEGORIES.map((c) => ({
-    label: c.id,
-    color: c.color,
-    value: avg(skills.filter((s) => s.category === c.id).map((s) => s.level)) / 5,
-  }))
   const avgLevel = avg(skills.map((s) => s.level))
+  const cats = SKILL_CATEGORIES.map((c) => {
+    const list = skills.filter((s) => s.category === c.id)
+    return { ...c, n: list.length, value: avg(list.map((s) => s.level)) }
+  })
   const months = Array.from({ length: 6 }, (_, i) => addMonths(now, i - 5)).map((d) => {
     const tx = transactions.filter((t) => t.date?.startsWith(monthKey(d)))
     return {
@@ -44,158 +56,185 @@ export default function Dashboard({ go }) {
   const pinned = docs.filter((d) => d.pinned).slice(0, 5)
   const habitsDone = habits.filter((x) => x.log?.[today]).length
   const toggleHabit = (x) => update('habits', x.id, { log: { ...x.log, [today]: !x.log?.[today] } })
+  const studying = skills.filter((s) => s.status === 'estudando').map((s) => s.name)
+
+  const ticker = [
+    `Saldo do mês ${brlShort(inc - out)}`,
+    `${openTasks.length} tarefas abertas`,
+    `${doing.length} em andamento`,
+    next ? `${next.name} em ${daysUntil(next.targetDate)} dias` : 'Nenhuma prova agendada',
+    `Hábitos hoje ${habitsDone}/${habits.length}`,
+    `Stack média ${avgLevel.toFixed(1).replace('.', ',')}/5`,
+    studying.length ? `Estudando: ${studying.slice(0, 4).join(', ')}` : 'Escolha algo para estudar',
+  ]
 
   return (
-    <div className="bento">
-      <section className="card hero span-12">
-        <div className="hero-glow" aria-hidden="true" />
-        <div className="hero-left">
-          <div className="kicker mono"><span className="kicker-num">01</span> / {weekday} · {dateStr}</div>
-          <h1 className="hero-title">
-            {greet},<br /><em>{settings.name || 'você'}.</em>
+    <>
+      <section className="lead">
+        <div className="lead-main">
+          <div className="lead-kicker mono">
+            <span>§01</span>
+            <span className="cap">{longDate}</span>
+          </div>
+          <h1 className="headline">
+            <span>{greet},</span>
+            <span className="hl-name" style={{ '--len': Math.max(5, (settings.name || 'você').length + 1) }}>{settings.name || 'você'}<b>.</b></span>
           </h1>
         </div>
-        <div className="hero-right">
-          <div className="clock mono" aria-label="Hora atual">
+        <aside className="lead-side">
+          <div className="bigclock" aria-label="Hora atual">
             {pad(now.getHours())}<span className="blink">:</span>{pad(now.getMinutes())}
           </div>
-          <label className="focus">
-            <span className="field-label">Foco de hoje</span>
-            <input value={settings.focus || ''} placeholder="Qual é a única coisa que importa hoje?"
+          <label className="focus-line">
+            <span className="mono">Foco de hoje</span>
+            <input value={settings.focus || ''} placeholder="escreva aqui a única coisa que importa"
               onChange={(e) => set('settings', { ...settings, focus: e.target.value })} />
           </label>
-          <div className="hero-meta mono">
-            <span>{openTasks.length} tarefas abertas</span>
-            <span>{habits.length - habitsDone} hábitos pendentes</span>
-            {next && <span>prova em {daysUntil(next.targetDate)}d</span>}
-          </div>
-        </div>
+        </aside>
       </section>
 
-      <button className="card stat span-3" onClick={() => go('financas')}>
-        <span className="stat-label">Saldo do mês</span>
-        <span className={`stat-value ${inc - out < 0 ? 'neg' : ''}`}>{brl(inc - out)}</span>
-        <span className="stat-sub"><b className="t-mint">↑ {brl(inc)}</b> <b className="t-coral">↓ {brl(out)}</b></span>
-      </button>
-      <button className="card stat span-3" onClick={() => go('tarefas')}>
-        <span className="stat-label">Tarefas abertas</span>
-        <span className="stat-value">{openTasks.length}</span>
-        <span className="stat-sub">{doing.length} em andamento · {tasks.filter((t) => t.column === 'done').length} feitas</span>
-      </button>
-      <button className="card stat span-3" onClick={() => go('certificacoes')}>
-        <span className="stat-label">Certificações</span>
-        <span className="stat-value">{doneCerts}<small>/{certs.length}</small></span>
-        <Progress value={certs.length ? (doneCerts / certs.length) * 100 : 0} />
-      </button>
-      <button className="card stat span-3" onClick={() => go('stack')}>
-        <span className="stat-label">Nível médio da stack</span>
-        <span className="stat-value">{avgLevel.toFixed(1).replace('.', ',')}<small>/5</small></span>
-        <span className="stat-sub">{skills.length} tecnologias mapeadas</span>
-      </button>
+      <Ticker items={ticker} />
 
-      <section className="card span-5">
-        <div className="card-head">
-          <h2>Mapa de habilidades</h2>
-          <button className="link" onClick={() => go('stack')}>Ver stack <Icon name="arrowR" size={14} /></button>
-        </div>
-        <div className="radar-wrap"><Radar data={radar} /></div>
-      </section>
+      <div className="cells c4">
+        <button className="cell stat wide-sm" onClick={() => go('financas')}>
+          <span className="cell-label mono">A · Saldo do mês</span>
+          <span className={`stat-num ${inc - out < 0 ? 'neg' : ''}`}>{brl(inc - out)}</span>
+          <span className="stat-sub mono">+{brlShort(inc)} / −{brlShort(out)}</span>
+        </button>
+        <button className="cell stat" onClick={() => go('tarefas')}>
+          <span className="cell-label mono">B · Tarefas abertas</span>
+          <span className="stat-num">{pad(openTasks.length)}</span>
+          <span className="stat-sub mono">{doing.length} fazendo · {tasks.length - openTasks.length} feitas</span>
+        </button>
+        <button className="cell stat" onClick={() => go('certificacoes')}>
+          <span className="cell-label mono">C · Certificações</span>
+          <span className="stat-num">{pad(doneCerts)}<small>/{pad(certs.length)}</small></span>
+          <Progress value={certs.length ? (doneCerts / certs.length) * 100 : 0} />
+        </button>
+        <button className="cell stat" onClick={() => go('stack')}>
+          <span className="cell-label mono">D · Nível médio</span>
+          <span className="stat-num">{avgLevel.toFixed(1).replace('.', ',')}<small>/5</small></span>
+          <span className="stat-sub mono">{skills.length} tecnologias</span>
+        </button>
+      </div>
 
-      <section className="card span-4">
-        <div className="card-head">
-          <h2>Em andamento</h2>
-          <button className="link" onClick={() => go('tarefas')}>Kanban <Icon name="arrowR" size={14} /></button>
-        </div>
-        {doing.length === 0 ? <p className="muted">Nada em andamento. Puxe algo de “A fazer”.</p> : (
-          <ul className="mini-list">
-            {doing.map((t) => (
-              <li key={t.id}>
-                <i className="dot" style={{ background: PRIORITIES[t.priority]?.color }} />
-                <span className="grow">{t.title}</span>
-                {t.due && <span className="mono muted small">{fmtDate(t.due)}</span>}
+      <div className="cells dash-a">
+        <section className="cell">
+          <header className="cell-head">
+            <h2>Habilidades por área</h2>
+            <button className="cell-link mono" onClick={() => go('stack')}>Stack →</button>
+          </header>
+          <ul className="area-list">
+            {cats.map((c) => (
+              <li key={c.id}>
+                <span className="area-code mono" style={{ '--c': c.color }}>{c.code}</span>
+                <span className="area-name">{c.id}<small className="mono">{c.n} itens</small></span>
+                <Ticks value={c.value / 5} color={c.color} />
+                <span className="area-val mono">{c.value.toFixed(1).replace('.', ',')}</span>
               </li>
             ))}
           </ul>
-        )}
-        <div className="divider" />
-        <div className="card-head"><h3>A seguir</h3></div>
-        <ul className="mini-list">
-          {tasks.filter((t) => t.column === 'todo').slice(0, 3).map((t) => (
-            <li key={t.id}>
-              <i className="dot hollow" />
-              <span className="grow muted">{t.title}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
+        </section>
 
-      <section className="card span-3 countdown">
-        <div className="card-head"><h2>Próxima prova</h2></div>
-        {next ? (
-          <>
-            <div className="count-num">{daysUntil(next.targetDate)}<span>dias</span></div>
-            <div className="count-name">{next.name}</div>
-            <div className="row between small muted mono">
-              <span>{fmtDateLong(next.targetDate)}</span>
-              <Pill color={CERT_STATUS[next.status]?.color}>{CERT_STATUS[next.status]?.label}</Pill>
-            </div>
-            <Progress value={next.progress} />
-            <span className="small muted mono">{next.progress}% preparado</span>
-          </>
-        ) : (
-          <p className="muted">Nenhuma prova com data. <button className="link" onClick={() => go('certificacoes')}>Planejar</button></p>
-        )}
-      </section>
+        <section className="cell">
+          <header className="cell-head">
+            <h2>Em andamento</h2>
+            <button className="cell-link mono" onClick={() => go('tarefas')}>Quadro →</button>
+          </header>
+          {doing.length === 0 ? <p className="muted">Nada em andamento. Puxe algo de “A fazer”.</p> : (
+            <ol className="numbered">
+              {doing.map((t, i) => (
+                <li key={t.id}>
+                  <span className="mono num">{pad(i + 1)}</span>
+                  <span className="grow">{t.title}</span>
+                  <span className="prio-mini" data-level={PRIORITIES[t.priority]?.level || 2} aria-label={`Prioridade ${PRIORITIES[t.priority]?.label}`} />
+                </li>
+              ))}
+            </ol>
+          )}
+          <div className="sub-head mono">Na fila</div>
+          <ol className="numbered quiet">
+            {todo.slice(0, 3).map((t) => (
+              <li key={t.id}>
+                <span className="mono num">—</span>
+                <span className="grow">{t.title}</span>
+                {t.due && <span className="mono small muted">{fmtDate(t.due)}</span>}
+              </li>
+            ))}
+          </ol>
+        </section>
 
-      <section className="card span-5">
-        <div className="card-head">
-          <h2>Fluxo de caixa</h2>
-          <div className="legend small"><span><i style={{ background: 'var(--mint)' }} />Entradas</span><span><i style={{ background: 'var(--coral)' }} />Saídas</span></div>
-        </div>
-        <MonthBars data={months} />
-      </section>
+        <section className="cell cell-ink countdown">
+          <header className="cell-head"><h2>Próxima prova</h2></header>
+          {next ? (
+            <>
+              <div className="count-num">{daysUntil(next.targetDate)}</div>
+              <div className="count-unit mono">dias restantes</div>
+              <div className="count-name">{next.name}</div>
+              <div className="count-meta mono">
+                <span>{fmtDateLong(next.targetDate)}</span>
+                <span>{CERT_STATUS[next.status]?.label}</span>
+              </div>
+              <Progress value={next.progress} color="var(--orange)" />
+              <span className="mono small">{next.progress}% preparado</span>
+            </>
+          ) : (
+            <p>Nenhuma prova com data. <button className="cell-link mono" onClick={() => go('certificacoes')}>Planejar →</button></p>
+          )}
+        </section>
+      </div>
 
-      <section className="card span-4">
-        <div className="card-head">
-          <h2>Hábitos de hoje</h2>
-          <span className="mono small muted">{habitsDone}/{habits.length}</span>
-        </div>
-        <ul className="habit-today">
-          {habits.map((x) => (
-            <li key={x.id}>
-              <button className={`check ${x.log?.[today] ? 'on' : ''}`} onClick={() => toggleHabit(x)} aria-pressed={!!x.log?.[today]}>
-                <span className="box"><Icon name="check" size={14} /></span>
-                <span>{x.name}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <div className="cells dash-b">
+        <section className="cell">
+          <header className="cell-head">
+            <h2>Fluxo de caixa</h2>
+            <div className="legend mono"><span><i style={{ background: 'var(--ink)' }} />Entra</span><span><i style={{ background: 'var(--orange)' }} />Sai</span></div>
+          </header>
+          <MonthBars data={months} />
+        </section>
 
-      <section className="card span-3">
-        <div className="card-head">
-          <h2>Fixados</h2>
-          <button className="link" onClick={() => go('documentos')}>Todos <Icon name="arrowR" size={14} /></button>
-        </div>
-        <ul className="pins">
-          {pinned.length === 0 && <li className="muted small">Fixe documentos para acessá-los aqui.</li>}
-          {pinned.map((d) => (
-            <li key={d.id}>
-              {d.url ? (
-                <a href={d.url} target="_blank" rel="noopener noreferrer">
-                  <span className="grow">{d.title}<small className="mono">{hostOf(d.url)}</small></span>
-                  <Icon name="external" size={14} />
-                </a>
-              ) : (
-                <button onClick={() => go('documentos')}>
-                  <span className="grow">{d.title}<small className="mono">{d.category}</small></span>
-                  <Icon name="arrowR" size={14} />
+        <section className="cell">
+          <header className="cell-head">
+            <h2>Hábitos de hoje</h2>
+            <span className="mono small">{habitsDone}/{habits.length}</span>
+          </header>
+          <ul className="checklist">
+            {habits.map((x) => (
+              <li key={x.id}>
+                <button className={`check ${x.log?.[today] ? 'on' : ''}`} onClick={() => toggleHabit(x)} aria-pressed={!!x.log?.[today]}>
+                  <span className="box" aria-hidden="true"><Icon name="check" size={13} /></span>
+                  <span>{x.name}</span>
                 </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      </section>
-    </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="cell">
+          <header className="cell-head">
+            <h2>Fixados</h2>
+            <button className="cell-link mono" onClick={() => go('documentos')}>Arquivo →</button>
+          </header>
+          <ul className="pins">
+            {pinned.length === 0 && <li className="muted small">Fixe documentos para acessá-los aqui.</li>}
+            {pinned.map((d) => (
+              <li key={d.id}>
+                {d.url ? (
+                  <a href={d.url} target="_blank" rel="noopener noreferrer">
+                    <span className="grow">{d.title}<small className="mono">{hostOf(d.url)}</small></span>
+                    <span className="mono arrow">↗</span>
+                  </a>
+                ) : (
+                  <button onClick={() => go('documentos')}>
+                    <span className="grow">{d.title}<small className="mono">{d.category}</small></span>
+                    <span className="mono arrow">→</span>
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+    </>
   )
 }

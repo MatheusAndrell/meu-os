@@ -40,5 +40,10 @@ export const hostOf = (url) => {
     return ''
   }
 }
+export const code = (id = '') => {
+  let h = 7
+  for (const ch of String(id)) h = (h * 31 + ch.charCodeAt(0)) % 997
+  return String(h + 1).padStart(3, '0')
+}
 export const norm = (s = '') => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 export const emitNew = (page) => setTimeout(() => window.dispatchEvent(new CustomEvent('os:new', { detail: page })), 60)

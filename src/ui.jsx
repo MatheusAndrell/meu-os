@@ -89,26 +89,26 @@ export function useClock(ms = 15000) {
 }
 
 /* ───────── Layout bits ───────── */
-export function PageHeader({ n, kicker, title, accent, children }) {
+export function PageHeader({ n, title, meta, children }) {
   return (
     <header className="page-head">
-      <div>
-        <div className="kicker mono">
-          <span className="kicker-num">{pad(n)}</span> / {kicker}
-        </div>
-        <h1 className="display">
-          {title} {accent && <em>{accent}</em>}
-        </h1>
+      <div className="page-head-top mono">
+        <span>§{pad(n)}</span>
+        {meta && <span className="page-meta">{meta}</span>}
       </div>
-      {children && <div className="page-actions">{children}</div>}
+      <div className="page-head-main">
+        <h1 className="display">{title}</h1>
+        {children && <div className="page-actions">{children}</div>}
+      </div>
     </header>
   )
 }
 
-export function Pill({ color, children, dot = true }) {
+/* Etiqueta retangular com marcador colorido */
+export function Pill({ color, children }) {
   return (
-    <span className="pill" style={{ '--c': color }}>
-      {dot && <i />}
+    <span className="tag" style={{ '--c': color }}>
+      <i />
       {children}
     </span>
   )
@@ -138,7 +138,7 @@ export function Levels({ value, color, onSet }) {
       {[1, 2, 3, 4, 5].map((n) =>
         onSet ? (
           <button key={n} className={`seg ${n <= value ? 'on' : ''}`} onClick={() => onSet(n)}
-            aria-label={`Definir nível ${n}: ${LEVELS[n]}`} title={LEVELS[n]} />
+            aria-label={`Definir nível ${n}: ${LEVELS[n]}`} title={`${n} · ${LEVELS[n]}`} />
         ) : (
           <span key={n} className={`seg ${n <= value ? 'on' : ''}`} />
         )
@@ -147,18 +147,28 @@ export function Levels({ value, color, onSet }) {
   )
 }
 
-export function Progress({ value, color = 'var(--accent)' }) {
+/* Régua com marcações a cada 10% */
+export function Progress({ value, color = 'var(--orange)' }) {
   return (
-    <div className="progress" style={{ '--c': color }}>
+    <div className="meter" style={{ '--c': color }}>
       <span style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
     </div>
   )
 }
 
-export function Empty({ icon = 'sparkle', title, children }) {
+/* Barra de traços (0..1) */
+export function Ticks({ value, color = 'var(--ink)', count = 24 }) {
+  const on = Math.round(Math.max(0, Math.min(1, value)) * count)
+  return (
+    <div className="ticks" style={{ '--c': color }} aria-hidden="true">
+      {Array.from({ length: count }, (_, i) => <span key={i} className={i < on ? 'on' : ''} />)}
+    </div>
+  )
+}
+
+export function Empty({ title, children }) {
   return (
     <div className="empty">
-      <Icon name={icon} size={22} />
       <strong>{title}</strong>
       {children && <p>{children}</p>}
     </div>

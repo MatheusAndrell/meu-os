@@ -29,7 +29,7 @@ export default function Finance() {
   useNewTrigger('financas', () => setEdit(blank()))
 
   const mk = monthKey(month)
-  const tx = state.transactions.filter((t) => t.date?.startsWith(mk)).sort((a, b) => b.date.localeCompare(a.date))
+  const tx = state.transactions.filter((t) => t.date?.startsWith(mk)).sort((a, b) => a.date.localeCompare(b.date))
   const inc = sum(tx.filter((t) => t.type === 'in').map((t) => t.amount))
   const out = sum(tx.filter((t) => t.type === 'out').map((t) => t.amount))
   const rate = inc > 0 ? ((inc - out) / inc) * 100 : 0
@@ -40,94 +40,121 @@ export default function Finance() {
     const m = state.transactions.filter((t) => t.date?.startsWith(monthKey(d)))
     return { label: monthShort(d), in: sum(m.filter((t) => t.type === 'in').map((t) => t.amount)), out: sum(m.filter((t) => t.type === 'out').map((t) => t.amount)) }
   })
+  let running = 0
 
   return (
     <>
-      <PageHeader n={5} kicker="Finanças" title="Dinheiro" accent="sob controle">
+      <PageHeader n={5} title="Livro-caixa" meta={monthName(month)}>
         <div className="month-nav">
           <button className="icon-btn" onClick={() => setMonth((m) => addMonths(m, -1))} aria-label="Mês anterior"><Icon name="chevL" /></button>
-          <span className="month-label">{monthName(month)}</span>
+          <span className="month-label mono">{monthShort(month)} {month.getFullYear()}</span>
           <button className="icon-btn" onClick={() => setMonth((m) => addMonths(m, 1))} aria-label="Próximo mês"><Icon name="chevR" /></button>
         </div>
-        <button className="btn primary" onClick={() => setEdit(blank())}><Icon name="plus" size={16} /> Transação</button>
+        <button className="btn primary" onClick={() => setEdit(blank())}><Icon name="plus" size={16} /> Lançamento</button>
       </PageHeader>
 
-      <div className="kpis four">
-        <div className="card kpi"><span className="stat-label"><Icon name="up" size={14} className="t-mint" /> Entradas</span><span className="stat-value sm">{brl(inc)}</span></div>
-        <div className="card kpi"><span className="stat-label"><Icon name="down" size={14} className="t-coral" /> Saídas</span><span className="stat-value sm">{brl(out)}</span></div>
-        <div className="card kpi accent"><span className="stat-label">Saldo</span><span className="stat-value sm">{brl(inc - out)}</span></div>
-        <div className="card kpi"><span className="stat-label">Taxa de poupança</span><span className="stat-value sm">{rate.toFixed(0)}%</span><Progress value={rate} color="var(--mint)" /></div>
+      <div className="cells c4 money">
+        <div className="cell stat"><span className="cell-label mono">Entradas</span><span className="stat-num md">{brl(inc)}</span></div>
+        <div className="cell stat"><span className="cell-label mono">Saídas</span><span className="stat-num md">{brl(out)}</span></div>
+        <div className="cell stat cell-signal"><span className="cell-label mono">Saldo</span><span className="stat-num md">{brl(inc - out)}</span></div>
+        <div className="cell stat">
+          <span className="cell-label mono">Taxa de poupança</span>
+          <span className="stat-num md">{rate.toFixed(0)}%</span>
+          <Progress value={rate} color="var(--green)" />
+        </div>
       </div>
 
-      <div className="fin-grid">
-        <section className="card fin-tx">
-          <div className="card-head">
-            <h2>Transações</h2>
-            <Chips value={type} onChange={setType} options={[{ value: 'all', label: 'Todas' }, { value: 'in', label: 'Entradas' }, { value: 'out', label: 'Saídas' }]} />
-          </div>
-          {list.length === 0 ? <Empty icon="wallet" title="Sem transações neste mês" /> : (
-            <ul className="tx-list">
-              {list.map((t) => (
-                <li key={t.id}>
-                  <button className="tx" onClick={() => setEdit(t)}>
-                    <span className="tx-date mono">{fmtDate(t.date)}</span>
-                    <span className="tx-desc">
-                      {t.desc}
-                      <small><i style={{ background: t.type === 'in' ? 'var(--mint)' : finColor(t.category) }} />{t.category}</small>
-                    </span>
-                    <span className={`tx-amount mono ${t.type === 'in' ? 't-mint' : ''}`}>{t.type === 'in' ? '+' : '−'} {brl(t.amount)}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+      <div className="cells fin-grid">
+        <section className="cell">
+          <header className="cell-head">
+            <h2>Lançamentos</h2>
+            <Chips value={type} onChange={setType} options={[{ value: 'all', label: 'Todos' }, { value: 'in', label: 'Entradas' }, { value: 'out', label: 'Saídas' }]} />
+          </header>
+          {list.length === 0 ? <Empty title="Sem lançamentos neste mês" /> : (
+            <div className="ledger-wrap">
+              <table className="ledger">
+                <thead>
+                  <tr>
+                    <th>Data</th><th>Descrição</th><th className="hide-sm">Categoria</th>
+                    <th className="num">Entrada</th><th className="num">Saída</th><th className="num hide-sm">Saldo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {list.map((t) => {
+                    running += t.type === 'in' ? t.amount : -t.amount
+                    return (
+                      <tr key={t.id} onClick={() => setEdit(t)}>
+                        <td className="mono">{fmtDate(t.date)}</td>
+                        <td><button className="row-btn" onClick={(e) => { e.stopPropagation(); setEdit(t) }}>{t.desc}</button></td>
+                        <td className="hide-sm"><span className="cat"><i style={{ background: t.type === 'in' ? 'var(--ink)' : finColor(t.category) }} />{t.category}</span></td>
+                        <td className="num mono">{t.type === 'in' ? brl(t.amount) : ''}</td>
+                        <td className="num mono">{t.type === 'out' ? brl(t.amount) : ''}</td>
+                        <td className={`num mono hide-sm ${running < 0 ? 't-neg' : 'muted'}`}>{brl(running)}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+                {type === 'all' && (
+                  <tfoot>
+                    <tr>
+                      <td colSpan={2}>Totais</td><td className="hide-sm" />
+                      <td className="num mono">{brl(inc)}</td><td className="num mono">{brl(out)}</td><td className="hide-sm" />
+                    </tr>
+                    <tr className="grand">
+                      <td colSpan={2}>Saldo do mês</td><td className="hide-sm" />
+                      <td colSpan={2} className="num mono">{brl(inc - out)}</td><td className="hide-sm" />
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
           )}
         </section>
 
         <div className="fin-side">
-          <section className="card">
-            <div className="card-head"><h2>Para onde foi</h2><span className="mono small muted">{brl(out)}</span></div>
+          <section className="cell">
+            <header className="cell-head"><h2>Para onde foi</h2><span className="mono small">{brl(out)}</span></header>
             {byCat.length ? <RankBars data={byCat} /> : <p className="muted small">Nenhuma saída registrada.</p>}
           </section>
-          <section className="card">
-            <div className="card-head">
-              <h2>Últimos 6 meses</h2>
-              <div className="legend small"><span><i style={{ background: 'var(--mint)' }} />Entradas</span><span><i style={{ background: 'var(--coral)' }} />Saídas</span></div>
-            </div>
-            <MonthBars data={history} height={150} />
+          <section className="cell">
+            <header className="cell-head">
+              <h2>Seis meses</h2>
+              <div className="legend mono"><span><i style={{ background: 'var(--ink)' }} />Entra</span><span><i style={{ background: 'var(--orange)' }} />Sai</span></div>
+            </header>
+            <MonthBars data={history} height={160} />
           </section>
         </div>
       </div>
 
-      <section className="goals-section">
-        <div className="group-head">
-          <h2>Caixinhas & metas</h2>
-          <button className="btn sm" onClick={() => setGoal({})}><Icon name="plus" size={14} /> Meta</button>
+      <section className="section">
+        <div className="section-head">
+          <h2>Metas de economia</h2>
+          <button className="btn" onClick={() => setGoal({})}><Icon name="plus" size={14} /> Meta</button>
         </div>
-        <div className="goals">
-          {state.goals.map((g) => {
-            const pct = g.target ? (g.current / g.target) * 100 : 0
-            return (
-              <article key={g.id} className="card goal">
-                <div className="row between">
-                  <h3>{g.name}</h3>
-                  <button className="icon-btn sm ghost" onClick={() => setGoal(g)} aria-label={`Editar ${g.name}`}><Icon name="edit" size={15} /></button>
-                </div>
-                <div className="goal-ring" style={{ '--p': Math.min(100, pct) }}>
-                  <span className="mono">{Math.round(pct)}%</span>
-                </div>
-                <div className="goal-nums mono small">
-                  <span>{brl(g.current)}</span>
-                  <span className="muted">de {brl(g.target)}</span>
-                </div>
-                <button className="btn sm full" onClick={() => setDeposit(g)}><Icon name="plus" size={14} /> Aportar</button>
-              </article>
-            )
-          })}
-          {state.goals.length === 0 && <Empty icon="target" title="Crie sua primeira meta" />}
-        </div>
+        {state.goals.length === 0 ? <Empty title="Crie sua primeira meta" /> : (
+          <ul className="goals">
+            {state.goals.map((g, i) => {
+              const pct = g.target ? (g.current / g.target) * 100 : 0
+              return (
+                <li key={g.id} className="goal">
+                  <span className="mono goal-n">{String(i + 1).padStart(2, '0')}</span>
+                  <div className="goal-body">
+                    <div className="goal-line">
+                      <button className="row-btn goal-name" onClick={() => setGoal(g)}>{g.name}</button>
+                      <span className="mono">{brl(g.current)} <span className="muted">/ {brl(g.target)}</span></span>
+                    </div>
+                    <div className="goal-meter"><span style={{ width: `${Math.min(100, pct)}%` }} /></div>
+                  </div>
+                  <span className="goal-pct">{Math.round(pct)}<small>%</small></span>
+                  <button className="btn sm" onClick={() => setDeposit(g)}>+ Aportar</button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
       </section>
 
-      <FormModal open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? 'Editar transação' : 'Nova transação'}
+      <FormModal open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? 'Editar lançamento' : 'Novo lançamento'}
         fields={TX_FIELDS} initial={edit}
         onSubmit={(v) => (edit?.id ? update('transactions', edit.id, v) : add('transactions', v))}
         onDelete={edit?.id ? () => remove('transactions', edit.id) : null} />
@@ -135,7 +162,7 @@ export default function Finance() {
         fields={GOAL_FIELDS} initial={goal}
         onSubmit={(v) => (goal?.id ? update('goals', goal.id, v) : add('goals', { current: 0, ...v }))}
         onDelete={goal?.id ? () => remove('goals', goal.id) : null} />
-      <FormModal open={!!deposit} onClose={() => setDeposit(null)} title={`Aportar em “${deposit?.name}”`} submitLabel="Aportar"
+      <FormModal open={!!deposit} onClose={() => setDeposit(null)} title={`Aportar em ${deposit?.name || ''}`} submitLabel="Aportar"
         fields={[{ name: 'amount', label: 'Valor (R$)', type: 'number', step: '0.01', required: true, full: true }]} initial={{}}
         onSubmit={(v) => update('goals', deposit.id, { current: (Number(deposit.current) || 0) + v.amount })} />
     </>

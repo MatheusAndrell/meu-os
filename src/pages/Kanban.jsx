@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useStore, uid } from '../store'
 import { FormModal, Icon, PageHeader, useNewTrigger } from '../ui'
 import { COLUMNS, PRIORITIES, toOptions } from '../constants'
-import { daysUntil, fmtDate } from '../utils'
+import { code, daysUntil, fmtDate, pad } from '../utils'
 
 const FIELDS = [
   { name: 'title', label: 'Título', required: true, full: true },
@@ -14,16 +14,17 @@ const FIELDS = [
 ]
 
 export default function Kanban() {
-  const { state, set, update, remove, add } = useStore()
+  const { state, set, update, add, remove } = useStore()
   const [edit, setEdit] = useState(null)
   const [dragId, setDragId] = useState(null)
   const [over, setOver] = useState(null)
   const [drafts, setDrafts] = useState({})
   const [tag, setTag] = useState('')
-  useNewTrigger('tarefas', () => setEdit({ column: 'todo', priority: 'media' }))
+  useNewTrigger('tarefas', () => setEdit({ column: 'todo', priority: 'media', tag }))
 
   const tags = [...new Set(state.tasks.map((t) => t.tag).filter(Boolean))]
   const visible = state.tasks.filter((t) => !tag || t.tag === tag)
+  const open = state.tasks.filter((t) => t.column !== 'done').length
 
   const move = (id, column, beforeId) => {
     if (!id || id === beforeId) return
@@ -48,7 +49,7 @@ export default function Kanban() {
 
   return (
     <>
-      <PageHeader n={4} kicker="Tarefas" title="Quadro" accent="de afazeres">
+      <PageHeader n={4} title="Quadro" meta={`${open} abertas · ${state.tasks.length - open} feitas`}>
         <button className="btn primary" onClick={() => setEdit({ column: 'todo', priority: 'media', tag })}>
           <Icon name="plus" size={16} /> Tarefa
         </button>
@@ -62,7 +63,7 @@ export default function Kanban() {
               <button key={t} className={`chip ${tag === t ? 'on' : ''}`} onClick={() => setTag(t)}>#{t}</button>
             ))}
           </div>
-          <span className="muted small hide-sm">Arraste os cartões entre colunas</span>
+          <span className="mono small muted hide-sm">Arraste os tickets entre as colunas</span>
         </div>
       )}
 
@@ -70,54 +71,58 @@ export default function Kanban() {
         {COLUMNS.map((col, ci) => {
           const items = visible.filter((t) => t.column === col.id)
           return (
-            <section key={col.id} className={`col ${over === col.id ? 'over' : ''} col-${col.id}`}
+            <section key={col.id} className={`lane ${over === col.id ? 'over' : ''} lane-${col.id}`}
               onDragOver={(e) => { e.preventDefault(); setOver(col.id) }}
               onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setOver(null) }}
               onDrop={(e) => { e.preventDefault(); move(dragId, col.id, null); endDrag() }}>
-              <header className="col-head">
+              <header className="lane-head">
+                <span className="mono lane-n">{String.fromCharCode(65 + ci)}</span>
                 <h2>{col.label}</h2>
-                <span className="col-count mono">{items.length}</span>
+                <span className="mono lane-count">{pad(items.length)}</span>
               </header>
-              <div className="col-body">
+              <div className="lane-body">
                 {items.map((t) => {
                   const pr = PRIORITIES[t.priority] || PRIORITIES.media
                   const dd = t.due ? daysUntil(t.due) : null
+                  const isDone = col.id === 'done'
                   return (
-                    <article key={t.id} className={`kcard ${dragId === t.id ? 'dragging' : ''}`} draggable
+                    <article key={t.id} className={`ticket ${dragId === t.id ? 'dragging' : ''} ${isDone ? 'is-done' : ''} prio-${t.priority}`} draggable
                       onDragStart={(e) => { e.dataTransfer.setData('text/plain', t.id); e.dataTransfer.effectAllowed = 'move'; setDragId(t.id) }}
                       onDragEnd={endDrag}
                       onDragOver={(e) => { e.preventDefault(); setOver(col.id) }}
-                      onDrop={(e) => { e.preventDefault(); e.stopPropagation(); move(dragId, col.id, t.id); endDrag() }}
-                      style={{ '--c': pr.color }}>
-                      <button className="kcard-main" onClick={() => setEdit(t)}>
-                        <span className={`kcard-title ${col.id === 'done' ? 'striked' : ''}`}>{t.title}</span>
-                        {t.desc && <span className="kcard-desc">{t.desc}</span>}
+                      onDrop={(e) => { e.preventDefault(); e.stopPropagation(); move(dragId, col.id, t.id); endDrag() }}>
+                      <div className="ticket-top mono">
+                        <span>T-{code(t.id)}</span>
+                        <span className="prio-mini" data-level={pr.level} title={`Prioridade ${pr.label}`} aria-label={`Prioridade ${pr.label}`} />
+                      </div>
+                      <button className="ticket-main" onClick={() => setEdit(t)}>
+                        <span className="ticket-title">{t.title}</span>
+                        {t.desc && <span className="ticket-desc">{t.desc}</span>}
                       </button>
-                      <div className="kcard-foot">
-                        <span className="prio"><i />{pr.label}</span>
-                        {t.tag && <span className="tag mono">#{t.tag}</span>}
+                      <div className="ticket-foot mono">
+                        {t.tag && <span>#{t.tag}</span>}
                         {t.due && (
-                          <span className={`due mono ${dd < 0 && col.id !== 'done' ? 'late' : dd <= 2 && col.id !== 'done' ? 'soon' : ''}`}>
-                            {fmtDate(t.due)}
+                          <span className={`due ${dd < 0 && !isDone ? 'late' : dd <= 2 && !isDone ? 'soon' : ''}`}>
+                            {dd < 0 && !isDone ? 'Atrasada · ' : ''}{fmtDate(t.due)}
                           </span>
                         )}
                         <span className="spacer" />
                         {ci < COLUMNS.length - 1 && (
-                          <button className="icon-btn xs ghost" aria-label={`Mover para ${COLUMNS[ci + 1].label}`} title={`Mover para ${COLUMNS[ci + 1].label}`}
+                          <button className="advance" aria-label={`Mover para ${COLUMNS[ci + 1].label}`} title={`Mover para ${COLUMNS[ci + 1].label}`}
                             onClick={() => update('tasks', t.id, { column: COLUMNS[ci + 1].id })}>
-                            <Icon name="arrowR" size={13} />
+                            →
                           </button>
                         )}
                       </div>
                     </article>
                   )
                 })}
-                {items.length === 0 && <div className="col-empty">Solte cartões aqui</div>}
+                {items.length === 0 && <div className="lane-empty mono">vazio</div>}
               </div>
               <form className="quick-add" onSubmit={(e) => { e.preventDefault(); quickAdd(col.id) }}>
-                <Icon name="plus" size={15} />
+                <span className="mono">+</span>
                 <input value={drafts[col.id] || ''} onChange={(e) => setDrafts((d) => ({ ...d, [col.id]: e.target.value }))}
-                  placeholder="Adicionar rápido…" aria-label={`Adicionar tarefa em ${col.label}`} />
+                  placeholder="nova tarefa ↵" aria-label={`Adicionar tarefa em ${col.label}`} />
               </form>
             </section>
           )

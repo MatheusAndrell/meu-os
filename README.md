@@ -4,6 +4,13 @@ Painel pessoal para organizar tecnologias e níveis, certificações, tarefas (k
 
 Feito com **React 18 + Vite**, sem backend. Os dados ficam salvos no navegador (localStorage).
 
+Visual "caderno de bordo": papel e tinta, um laranja de sinalização, Archivo (larga) + IBM Plex Mono. As fontes vêm do próprio projeto (Fontsource), sem depender do Google Fonts.
+
+## Rotas
+
+URLs limpas com History API: `/`, `/stack`, `/certificacoes`, `/tarefas`, `/financas`, `/documentos`, `/habitos`, `/ajustes`.
+O `vercel.json` tem um *rewrite* para `index.html`, assim recarregar ou abrir `/stack` direto funciona. Links antigos no formato `/#/stack` são convertidos automaticamente.
+
 ## Rodar localmente
 
 ```bash
@@ -42,13 +49,14 @@ vercel --prod # produção
 
 ```
 src/
-  App.jsx          layout, navegação (hash) e paleta de comandos
+  App.jsx          cabeçalho, índice de seções e paleta de comandos
+  router.jsx       roteador (History API) e <Link>
   store.jsx        estado global + persistência no localStorage
   seed.js          dados de exemplo
   ui.jsx           ícones, modal, formulários, componentes base
-  charts.jsx       radar, barras mensais, ranking (SVG puro)
+  charts.jsx       barras mensais e ranking (SVG puro)
   pages/           Dashboard, Skills, Certs, Kanban, Finance, Docs, Habits, Settings
-  styles.css       design tokens (tema claro/escuro) e estilos
+  styles.css       tokens de design (modo papel / modo tinta) e estilos
 ```
 
 ## Próximos passos possíveis

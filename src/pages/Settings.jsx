@@ -54,11 +54,11 @@ export default function Settings() {
 
   return (
     <>
-      <PageHeader n={8} kicker="Ajustes" title="Preferências" accent="& dados" />
+      <PageHeader n={8} title="Ajustes" meta="perfil · aparência · dados" />
 
-      <div className="settings-grid">
-        <section className="card">
-          <div className="card-head"><h2>Perfil</h2></div>
+      <div className="cells c2 settings-grid">
+        <section className="cell">
+          <header className="cell-head"><h2>Perfil</h2></header>
           <div className="form-grid">
             <label className="field full"><span className="field-label">Nome</span>
               <input className="input" value={s.name} onChange={(e) => setS({ name: e.target.value })} /></label>
@@ -66,19 +66,19 @@ export default function Settings() {
               <input className="input" value={s.role} onChange={(e) => setS({ role: e.target.value })} /></label>
           </div>
           <div className="divider" />
-          <div className="card-head"><h2>Tema</h2></div>
+          <header className="cell-head"><h2>Aparência</h2></header>
           <div className="theme-pick">
             {['dark', 'light'].map((t) => (
               <button key={t} className={`theme-opt ${s.theme === t ? 'on' : ''}`} data-preview={t} onClick={() => setS({ theme: t })} aria-pressed={s.theme === t}>
                 <span className="theme-swatch"><i /><i /><i /></span>
-                {t === 'dark' ? 'Escuro' : 'Claro'}
+                {t === 'dark' ? 'Tinta' : 'Papel'}
               </button>
             ))}
           </div>
         </section>
 
-        <section className="card">
-          <div className="card-head"><h2>Seus dados</h2></div>
+        <section className="cell">
+          <header className="cell-head"><h2>Seus dados</h2></header>
           <p className="muted small">Tudo fica salvo neste navegador (localStorage). Exporte um backup de vez em quando e importe-o em outro computador ou navegador.</p>
           <div className="count-grid">
             {counts.map(([l, n]) => <div key={l}><strong>{n}</strong><span className="small muted">{l}</span></div>)}
@@ -89,15 +89,15 @@ export default function Settings() {
             <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={importJson} />
           </div>
           <div className="divider" />
-          <div className="card-head"><h2>Zona de reset</h2></div>
+          <header className="cell-head"><h2>Zona de reset</h2></header>
           <div className="btn-row">
             <button className="btn ghost danger" onClick={clearExamples}><Icon name="trash" size={16} /> Começar do zero</button>
             <button className="btn ghost" onClick={restore}><Icon name="refresh" size={16} /> Restaurar exemplo</button>
           </div>
         </section>
 
-        <section className="card span-all shortcuts">
-          <div className="card-head"><h2>Atalhos</h2></div>
+        <section className="cell span-all shortcuts">
+          <header className="cell-head"><h2>Atalhos</h2></header>
           <ul>
             <li><kbd className="mono">⌘/Ctrl K</kbd> Paleta de comandos: navegar, criar itens, abrir documentos</li>
             <li><kbd className="mono">Esc</kbd> Fechar janelas</li>

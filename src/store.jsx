@@ -12,7 +12,10 @@ function load() {
     if (raw) {
       const parsed = JSON.parse(raw)
       const base = seed()
-      return { ...base, ...parsed, settings: { ...base.settings, ...(parsed.settings || {}) } }
+      const settings = { ...base.settings, ...(parsed.settings || {}) }
+      // Novo visual (v2): começa no modo papel uma única vez
+      if (settings.design !== 2) Object.assign(settings, { design: 2, theme: 'light' })
+      return { ...base, ...parsed, settings }
     }
   } catch {}
   return seed()
@@ -46,7 +49,7 @@ export function StoreProvider({ children }) {
 
   useEffect(() => {
     document.documentElement.dataset.theme = state.settings.theme
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', state.settings.theme === 'dark' ? '#0D0D0B' : '#F3F0E8')
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', state.settings.theme === 'dark' ? '#121211' : '#EFEEE9')
   }, [state.settings.theme])
 
   const api = useMemo(

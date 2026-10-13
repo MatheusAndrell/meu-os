@@ -25,18 +25,18 @@ export default function Habits() {
 
   return (
     <>
-      <PageHeader n={7} kicker="Hábitos" title="Constância" accent="diária">
+      <PageHeader n={7} title="Constância" meta={`últimos ${DAYS} dias`}>
         <button className="btn primary" onClick={() => setEdit({})}><Icon name="plus" size={16} /> Hábito</button>
       </PageHeader>
 
-      <div className="kpis">
-        <div className="card kpi"><span className="stat-label">Conclusão ({DAYS} dias)</span><span className="stat-value">{totalCells ? Math.round((doneCells / totalCells) * 100) : 0}%</span></div>
-        <div className="card kpi"><span className="stat-label">Melhor sequência atual</span><span className="stat-value">{Math.max(0, ...state.habits.map((h) => streak(h.log)))}<small> dias</small></span></div>
-        <div className="card kpi"><span className="stat-label">Hoje</span><span className="stat-value">{state.habits.filter((h) => h.log?.[iso(today)]).length}<small>/{state.habits.length}</small></span></div>
+      <div className="cells c3">
+        <div className="cell stat"><span className="cell-label mono">Conclusão · {DAYS} dias</span><span className="stat-num">{totalCells ? Math.round((doneCells / totalCells) * 100) : 0}<small>%</small></span></div>
+        <div className="cell stat"><span className="cell-label mono">Melhor sequência atual</span><span className="stat-num">{Math.max(0, ...state.habits.map((h) => streak(h.log)))}<small> dias</small></span></div>
+        <div className="cell stat"><span className="cell-label mono">Hoje</span><span className="stat-num">{state.habits.filter((h) => h.log?.[iso(today)]).length}<small>/{state.habits.length}</small></span></div>
       </div>
 
-      {state.habits.length === 0 ? <Empty icon="flame" title="Nenhum hábito ainda">Comece com algo pequeno, como 10 minutos de leitura.</Empty> : (
-        <section className="card habit-table-wrap">
+      {state.habits.length === 0 ? <Empty title="Nenhum hábito ainda">Comece com algo pequeno, como 10 minutos de leitura.</Empty> : (
+        <section className="punch">
           <table className="habit-table">
             <thead>
               <tr>
@@ -47,7 +47,7 @@ export default function Habits() {
                     <b className="mono">{d.getDate()}</b>
                   </th>
                 ))}
-                <th className="h-streak">Sequência</th>
+                <th className="h-streak mono">Seq.</th>
               </tr>
             </thead>
             <tbody>
@@ -63,13 +63,13 @@ export default function Habits() {
                       const on = !!h.log?.[k]
                       return (
                         <td key={k}>
-                          <button className={`cell ${on ? 'on' : ''} ${k === iso(today) ? 'today' : ''}`} onClick={() => toggle(h, k)}
+                          <button className={`hole ${on ? 'on' : ''} ${k === iso(today) ? 'today' : ''}`} onClick={() => toggle(h, k)}
                             aria-pressed={on} aria-label={`${h.name} em ${d.toLocaleDateString('pt-BR')}`} />
                         </td>
                       )
                     })}
                     <td className="h-streak mono">
-                      <span className={s >= 3 ? 'hot' : ''}><Icon name="flame" size={14} /> {s}</span>
+                      <span className={s >= 3 ? 'hot' : ''}>{String(s).padStart(2, '0')}</span>
                     </td>
                   </tr>
                 )

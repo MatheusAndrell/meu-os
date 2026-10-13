@@ -103,7 +103,7 @@ export function seed() {
   })
 
   return {
-    settings: { name: 'Matheus', role: 'Desenvolvedor Full Stack', theme: 'dark', focus: '' },
+    settings: { name: 'Matheus', role: 'Desenvolvedor Full Stack', theme: 'light', focus: '', design: 2 },
     skills, certs, tasks, transactions, goals, docs, habits,
   }
 }
